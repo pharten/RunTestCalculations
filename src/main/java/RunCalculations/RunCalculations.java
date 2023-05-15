@@ -15,12 +15,17 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.openscience.cdk.AtomContainerSet;
+
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
+import ToxPredictor.Application.TESTConstants;
 import ToxPredictor.Application.Calculations.RunFromSmiles;
 import ToxPredictor.Application.Calculations.RunFromSmiles.PredictionDashboard;
 import ToxPredictor.Application.model.PredictionResults;
+import ToxPredictor.Database.DSSToxRecord;
 
 /**
 * @author TMARTI02
@@ -45,68 +50,74 @@ public class RunCalculations {
 		RunFromSmiles.runSDF_all_endpoints_write_continuously(filepathSDF,destJsonPath,skipMissingSID,maxCount);
 	}
 	
-	
-//	/**
-//	 * Runs all files in a loop- but really each should be run on a separate machine to parallelize
-//	 */
-//	void runSDFs() {
-//		
-//		String folderSrc="C:\\Users\\TMARTI02\\OneDrive - Environmental Protection Agency (EPA)\\0 java\\hibernate_qsar_model_building\\data\\dsstox\\sdf\\";
-//		String destFolder="reports\\";
-//		
-//		
-//		File Folder=new File(folderSrc);
-//		
-//		boolean skipMissingSID=true;
-//		int maxCount=10;//set to -1 to run all chemicals
-//		
-//		for (File file:Folder.listFiles()) {
-//			if(!file.getName().contains(".sdf"))continue;
-//			String filepathSDF=file.getAbsolutePath();
-//			String destJsonPath=destFolder+"TEST_results_all_endpoints_"+file.getName().replace(".sdf", ".json");
-//			RunFromSmiles.runSDF_all_endpoints_write_continuously(filepathSDF,destJsonPath,skipMissingSID,maxCount);
-////			lookAtResultsInJson(destJsonPath, false);//converts to tsv for main results to be able to view it better
-//		}
-//		
-//	}
-	
-	
-//	/**
-//	 * Runs all files in a loop- but really each should be run on a separate machine to parallelize
-//	 */
-//	void runSDFsMultiThreaded() {
-//		
-//		String folderSrc="C:\\Users\\TMARTI02\\OneDrive - Environmental Protection Agency (EPA)\\0 java\\hibernate_qsar_model_building\\data\\dsstox\\sdf\\";
-//		String destFolder="reports\\";
-//		
-//		
-//		File Folder=new File(folderSrc);
-//		
-//		boolean skipMissingSID=true;
-////		int maxCount=10;//set to -1 to run all chemicals
-//		int maxCount=-1;//set to -1 to run all chemicals
-//		
-//		//Run using multiple threads
-//		ExecutorService es = Executors.newFixedThreadPool(10);
-//		
-//		for(File file: Folder.listFiles()) {
-//			
-//			if(!file.getName().contains(".sdf"))continue; 
-//						
-//		    es.submit(() -> {
-//		    	String filepathSDF=file.getAbsolutePath();
-//		    	String destJsonPath=destFolder+"TEST_results_all_endpoints_"+file.getName().replace(".sdf", ".json");
-//		    	RunFromSmiles.runSDF_all_endpoints_write_continuously(filepathSDF,destJsonPath,skipMissingSID,maxCount);
-//		    });
-//		    
-//			if(true) break;
-//
-//		}
-//		
-//		es.shutdown();
-//		
-//	}
-	
+	/**
+	 * Version that doesnt use files to do I/O- master process handles the file writing
+	 * 
+	 */
+	void runSDF_using_objects() {
+		int num=1;//which SDF file number to use		
+		int maxCount=100;//set to -1 to run all in sdf
+		int batchSize=10;//number of chemicals to pass to a processor in a single call (set to 50 or 500)
+		boolean skipMissingSID=true;//if true skips chemicals that dont have a DTXSID
+		String [] endpoints= RunFromSmiles.allEndpoints;
+//		String [] endpoints= RunFromSmiles.twoEndpoints;
+		String method = TESTConstants.ChoiceConsensus;// what QSAR method being used (default- runs all methods and
+		boolean createReports = true;// whether to store report
+		boolean createDetailedReports = false;// detailed reports have lots more info and creates more html files
+		
+		String folderSrc="C:\\Users\\TMARTI02\\OneDrive - Environmental Protection Agency (EPA)\\0 java\\hibernate_qsar_model_building\\data\\dsstox\\sdf\\";
+		String fileNameSDF="snapshot_compounds"+num+".sdf";
+		String filePathSDF=folderSrc+fileNameSDF;
+		
+		AtomContainerSet acs=RunFromSmiles.readSDFV3000(filePathSDF);
+		acs = RunFromSmiles.filterAtomContainerSet(acs, skipMissingSID,maxCount);
+
+		System.out.println(fileNameSDF);
+		System.out.println("atom container count="+acs.getAtomContainerCount());
+		
+		File resultsFolder=new File("reports");
+		resultsFolder.mkdirs();
+		String destJsonPath="reports/Objects_TEST_results_all_endpoints_"+fileNameSDF.replace(".sdf", ".json");
+		
+		
+		Gson gson = new GsonBuilder().serializeSpecialFloatingPointValues().disableHtmlEscaping().create();
+
+		
+		try {
+
+			FileWriter fw=new FileWriter(destJsonPath);
+			
+			while(true) {
+
+				//Extract batchSize number of chemicals: 
+				AtomContainerSet chemicals=new AtomContainerSet();
+				for (int i=1;i<=batchSize;i++) {
+					chemicals.addAtomContainer(acs.getAtomContainer(0));
+					acs.removeAtomContainer(0);
+					if(acs.getAtomContainerCount()==0) break;
+				}
+
+				//Run chemicals on node:
+				List<PredictionResults>resultsArray=RunFromSmiles.runEndpointsAsList(chemicals, endpoints, method,createReports,createDetailedReports,DSSToxRecord.strSID);
+				
+				//Write results to file
+				for (PredictionResults pr:resultsArray) {
+					fw.write(gson.toJson(pr)+"\r\n");
+					fw.flush();
+				}
+
+				if(acs.getAtomContainerCount()==0) break;
+			}
+
+			fw.close();
+			
+
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+
+	}
+		
 	
 	/**
 	 * Runs each file using a separate processor. Ideally each file would be run on a separate machine
@@ -253,10 +264,12 @@ public class RunCalculations {
 
 		RunCalculations r=new RunCalculations();
 		
-		r.runSDF();
+//		r.runSDF();
 //		r.runSDFsMultiThreaded();
+		r.runSDF_using_objects();
 		
 //		String fileNameJson="TEST_results_all_endpoints_snapshot_compounds4.json";
+//		String fileNameJson="sample.json";
 //		String destJsonPath="reports/"+fileNameJson;
 //		r.lookAtResultsInJson(destJsonPath, false);
 		
