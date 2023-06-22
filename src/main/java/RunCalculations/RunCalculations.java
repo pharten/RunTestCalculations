@@ -33,9 +33,9 @@ import ToxPredictor.Database.DSSToxRecord;
 public class RunCalculations {
 	
 	
-	void runSDF() {
+	public void runSDF() {
 		
-		String folderSrc="C:\\Users\\TMARTI02\\OneDrive - Environmental Protection Agency (EPA)\\0 java\\hibernate_qsar_model_building\\data\\dsstox\\sdf\\";
+		String folderSrc="sdf/";
 
 		int num=7;
 		
@@ -54,9 +54,27 @@ public class RunCalculations {
 	 * Version that doesnt use files to do I/O- master process handles the file writing
 	 * 
 	 */
-	void runSDF_using_objects() {
+	public void runSDF_using_objects(int num, int maxCount, int batchSize) {
+		//int num=1;//which SDF file number to use		
+		//int maxCount=25;//set to -1 to run all in sdf
+		//int batchSize=10;//number of chemicals to pass to a processor in a single call (set to 50 or 500)
+		boolean skipMissingSID=true;//if true skips chemicals that dont have a DTXSID
+		String [] endpoints= RunFromSmiles.allEndpoints;
+//		String [] endpoints= RunFromSmiles.twoEndpoints;
+		String method = TESTConstants.ChoiceConsensus;// what QSAR method being used (default- runs all methods and
+		boolean createReports = true;// whether to store report
+		boolean createDetailedReports = false;// detailed reports have lots more info and creates more html files
+		
+		String folderSrc="sdf/";
+		String fileNameSDF="snapshot_compounds"+num+".sdf";
+		String filePathSDF=folderSrc+fileNameSDF;
+		
+		return;
+	}
+		
+	public void runSDF_using_objects() {
 		int num=1;//which SDF file number to use		
-		int maxCount=100;//set to -1 to run all in sdf
+		int maxCount=25;//set to -1 to run all in sdf
 		int batchSize=10;//number of chemicals to pass to a processor in a single call (set to 50 or 500)
 		boolean skipMissingSID=true;//if true skips chemicals that dont have a DTXSID
 		String [] endpoints= RunFromSmiles.allEndpoints;
@@ -65,7 +83,7 @@ public class RunCalculations {
 		boolean createReports = true;// whether to store report
 		boolean createDetailedReports = false;// detailed reports have lots more info and creates more html files
 		
-		String folderSrc="C:\\Users\\TMARTI02\\OneDrive - Environmental Protection Agency (EPA)\\0 java\\hibernate_qsar_model_building\\data\\dsstox\\sdf\\";
+		String folderSrc="sdf/";
 		String fileNameSDF="snapshot_compounds"+num+".sdf";
 		String filePathSDF=folderSrc+fileNameSDF;
 		
@@ -116,8 +134,8 @@ public class RunCalculations {
 			ex.printStackTrace();
 		}
 
+		return;
 	}
-		
 	
 	/**
 	 * Runs each file using a separate processor. Ideally each file would be run on a separate machine
@@ -266,7 +284,9 @@ public class RunCalculations {
 		
 //		r.runSDF();
 //		r.runSDFsMultiThreaded();
-		r.runSDF_using_objects();
+//		r.runSDF_using_objects();
+		r.runSDF_using_objects(1, 25, 10);
+		r.runSDF_using_objects(2, 25, 10);
 		
 //		String fileNameJson="TEST_results_all_endpoints_snapshot_compounds4.json";
 //		String fileNameJson="sample.json";
