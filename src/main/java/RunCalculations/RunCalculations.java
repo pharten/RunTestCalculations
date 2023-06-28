@@ -69,6 +69,53 @@ public class RunCalculations {
 		String fileNameSDF="snapshot_compounds"+num+".sdf";
 		String filePathSDF=folderSrc+fileNameSDF;
 		
+		AtomContainerSet acs=RunFromSmiles.readSDFV3000(filePathSDF);
+		acs = RunFromSmiles.filterAtomContainerSet(acs, skipMissingSID,maxCount);
+
+		System.out.println(fileNameSDF);
+		System.out.println("atom container count="+acs.getAtomContainerCount());
+		
+		File resultsFolder=new File("reports");
+		resultsFolder.mkdirs();
+		String destJsonPath="reports/Objects_TEST_results_all_endpoints_"+fileNameSDF.replace(".sdf", ".json");
+		
+		
+		Gson gson = new GsonBuilder().serializeSpecialFloatingPointValues().disableHtmlEscaping().create();
+
+		
+		try {
+
+			FileWriter fw=new FileWriter(destJsonPath);
+			
+			while(true) {
+
+				//Extract batchSize number of chemicals: 
+				AtomContainerSet chemicals=new AtomContainerSet();
+				for (int i=1;i<=batchSize;i++) {
+					chemicals.addAtomContainer(acs.getAtomContainer(0));
+					acs.removeAtomContainer(0);
+					if(acs.getAtomContainerCount()==0) break;
+				}
+
+				//Run chemicals on node:
+				List<PredictionResults>resultsArray=RunFromSmiles.runEndpointsAsList(chemicals, endpoints, method,createReports,createDetailedReports,DSSToxRecord.strSID);
+				
+				//Write results to file
+				for (PredictionResults pr:resultsArray) {
+					fw.write(gson.toJson(pr)+"\r\n");
+					fw.flush();
+				}
+
+				if(acs.getAtomContainerCount()==0) break;
+			}
+
+			fw.close();
+			
+
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+
 		return;
 	}
 		
