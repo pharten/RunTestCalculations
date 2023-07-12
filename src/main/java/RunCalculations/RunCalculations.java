@@ -118,6 +118,76 @@ public class RunCalculations {
 
 		return;
 	}
+	
+	public void runSDF_concurrently(int num, int maxCount, int batchSize) {
+		//int num=1;//which SDF file number to use		
+		//int maxCount=25;//set to -1 to run all in sdf
+		//int batchSize=10;//number of chemicals to pass to a processor in a single call (set to 50 or 500)
+		boolean skipMissingSID=true;//if true skips chemicals that dont have a DTXSID
+		String [] endpoints= RunFromSmiles.allEndpoints;
+//		String [] endpoints= RunFromSmiles.twoEndpoints;
+		String method = TESTConstants.ChoiceConsensus;// what QSAR method being used (default- runs all methods and
+		boolean createReports = true;// whether to store report
+		boolean createDetailedReports = false;// detailed reports have lots more info and creates more html files
+		
+		String folderSrc="sdf/";
+		String fileNameSDF="snapshot_compounds"+num+".sdf";
+		String filePathSDF=folderSrc+fileNameSDF;
+		
+		AtomContainerSet acs=RunFromSmiles.readSDFV3000(filePathSDF);
+		acs = RunFromSmiles.filterAtomContainerSet(acs, skipMissingSID,maxCount);
+
+		System.out.println(fileNameSDF);
+		System.out.println("atom container count="+acs.getAtomContainerCount());
+		
+		File resultsFolder=new File("reports");
+		resultsFolder.mkdirs();
+		String destJsonPath="reports/Objects_TEST_results_all_endpoints_"+fileNameSDF.replace(".sdf", ".json");
+		
+		Gson gson = new GsonBuilder().serializeSpecialFloatingPointValues().disableHtmlEscaping().create();
+		
+		try {
+
+			FileWriter fw=new FileWriter(destJsonPath);
+			
+			EndPointsResults endpointsResults = new EndPointsResults(endpoints, method, createReports, createDetailedReports, DSSToxRecord.strSID);
+			
+			List<PredictionResults>resultsArray = new ArrayList<PredictionResults>();
+			
+			while(true) {
+
+				//Extract batchSize number of chemicals: 
+				AtomContainerSet batchSet=new AtomContainerSet();
+				for (int i=1;i<=batchSize;i++) {
+					batchSet.addAtomContainer(acs.getAtomContainer(0));
+					acs.removeAtomContainer(0);
+					if(acs.getAtomContainerCount()==0) break;
+				}
+
+				//Run chemicals on starting node:
+				//List<PredictionResults>resultsArrayPartial=RunFromSmiles.runEndpointsAsList(batchSet, endpoints, method,createReports,createDetailedReports,DSSToxRecord.strSID);
+				List<PredictionResults>resultsArrayPartial=endpointsResults.calculateResults(batchSet, batchSize);
+				
+				resultsArray.addAll(resultsArrayPartial);
+
+				if(acs.getAtomContainerCount()==0) break;
+			}
+			
+			//Write results to file
+			for (PredictionResults pr:resultsArray) {
+				fw.write(gson.toJson(pr)+"\r\n");
+				fw.flush();
+			}
+
+			fw.close();
+			
+
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+
+		return;
+	}
 		
 	public void runSDF_using_objects() {
 		int num=1;//which SDF file number to use		
@@ -332,8 +402,9 @@ public class RunCalculations {
 //		r.runSDF();
 //		r.runSDFsMultiThreaded();
 //		r.runSDF_using_objects();
-		r.runSDF_using_objects(1, 25, 10);
-		r.runSDF_using_objects(2, 25, 10);
+		//r.runSDF_using_objects(1, 600, 200);
+		r.runSDF_concurrently(1, 600, 200);
+		//r.runSDF_concurrently(2, 100, 50);
 		
 //		String fileNameJson="TEST_results_all_endpoints_snapshot_compounds4.json";
 //		String fileNameJson="sample.json";
