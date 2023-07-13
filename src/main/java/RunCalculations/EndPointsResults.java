@@ -25,7 +25,7 @@ public class EndPointsResults {
 	private static boolean createReports;
 	private static boolean createDetailedReports;
 	private static String key;
-	private static int nprocs = Runtime.getRuntime().availableProcessors();
+	private static int nprocs = Runtime.getRuntime().availableProcessors()-14;
 	private static int nTasks = nprocs;
 	private ExecutorService executor = null;
 	
@@ -44,7 +44,7 @@ public class EndPointsResults {
 		int chemicalsCount = batchSet.getAtomContainerCount();
 		int taskSize = (batchSize+nTasks-1)/nTasks;
 
-		Vector<AtomContainerSet> chemicalSet = new Vector<AtomContainerSet>(nTasks);
+		List<AtomContainerSet> chemicalSet = new ArrayList<AtomContainerSet>(nTasks);
 		for (int j=0; j<nTasks; j++) {
 			AtomContainerSet chemicals = new AtomContainerSet();
 			for (int i=0;i<taskSize;i++) {
@@ -57,14 +57,16 @@ public class EndPointsResults {
 		}
 		
 		int setCount = chemicalSet.size();
+		List<Future<List<PredictionResults>>> futureList = new ArrayList<Future<List<PredictionResults>>>();
 		for (int j=0; j<setCount; j++) {
 			ConcurrentRun task = new ConcurrentRun(chemicalSet.get(j));
-			Future<List<PredictionResults>> futureList = executor.submit(task);
-			predictionResults.add(futureList);
+			Future<List<PredictionResults>> future = executor.submit(task);
+			futureList.add(future);
+			//predictionResults.add(futureList);
 		}
 		
 		List<PredictionResults> batchPredictionResults = new ArrayList<PredictionResults>();
-		for(Future<List<PredictionResults>> fut : predictionResults) {
+		for(Future<List<PredictionResults>> fut : futureList) {
             try {
                 // Future.get() waits for task to get completed
     			batchPredictionResults.addAll(fut.get());

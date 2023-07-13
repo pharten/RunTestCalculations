@@ -403,7 +403,7 @@ public class RunCalculations {
 //		r.runSDFsMultiThreaded();
 //		r.runSDF_using_objects();
 		//r.runSDF_using_objects(1, 600, 200);
-		r.runSDF_concurrently(1, 600, 200);
+		r.runSDF_concurrently(1, 1000, 100);
 		//r.runSDF_concurrently(2, 100, 50);
 		
 //		String fileNameJson="TEST_results_all_endpoints_snapshot_compounds4.json";
