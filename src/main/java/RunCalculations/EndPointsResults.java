@@ -2,13 +2,11 @@ package RunCalculations;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Vector;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import org.openscience.cdk.AtomContainerSet;
 
@@ -25,8 +23,8 @@ public class EndPointsResults {
 	private static boolean createReports;
 	private static boolean createDetailedReports;
 	private static String key;
-	private static int nprocs = Runtime.getRuntime().availableProcessors()-14;
-	private static int nTasks = nprocs;
+	private static int nprocs = Runtime.getRuntime().availableProcessors();
+	//private static int nTasks = nprocs;
 	private ExecutorService executor = null;
 	
 	EndPointsResults(String [] endpoints_in, String method_in, boolean createReports_in, boolean createDetailedReports_in, String key_in) {
@@ -39,13 +37,15 @@ public class EndPointsResults {
 	
 	public List<PredictionResults> calculateResults(AtomContainerSet batchSet, int batchSize) throws InterruptedException, ExecutionException {
 		
-		executor = Executors.newFixedThreadPool(nprocs);
-		List<Future<List<PredictionResults>>> predictionResults = new ArrayList<Future<List<PredictionResults>>>(nTasks);
-		int chemicalsCount = batchSet.getAtomContainerCount();
-		int taskSize = (batchSize+nTasks-1)/nTasks;
+		int nTasks = batchSet.getAtomContainerCount();
+		int nprocsUsed = (nTasks <= nprocs ? nTasks:nprocs);
+		executor = Executors.newFixedThreadPool(nprocsUsed);
+		
+		List<Future<List<PredictionResults>>> predictionResults = new ArrayList<Future<List<PredictionResults>>>(nprocsUsed);
+		int taskSize = (batchSize+nprocsUsed-1)/nprocsUsed;
 
-		List<AtomContainerSet> chemicalSet = new ArrayList<AtomContainerSet>(nTasks);
-		for (int j=0; j<nTasks; j++) {
+		List<AtomContainerSet> chemicalSet = new ArrayList<AtomContainerSet>(nprocsUsed);
+		for (int j=0; j<nprocsUsed; j++) {
 			AtomContainerSet chemicals = new AtomContainerSet();
 			for (int i=0;i<taskSize;i++) {
 				chemicals.addAtomContainer(batchSet.getAtomContainer(0));

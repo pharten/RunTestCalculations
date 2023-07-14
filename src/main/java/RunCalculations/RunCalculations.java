@@ -399,11 +399,13 @@ public class RunCalculations {
 
 		RunCalculations r=new RunCalculations();
 		
+		long startTime = System.currentTimeMillis();
+
 //		r.runSDF();
 //		r.runSDFsMultiThreaded();
 //		r.runSDF_using_objects();
-		//r.runSDF_using_objects(1, 600, 200);
-		r.runSDF_concurrently(1, 1000, 100);
+		//r.runSDF_using_objects(1, 50, 16);
+		r.runSDF_concurrently(1, 50, 50);
 		//r.runSDF_concurrently(2, 100, 50);
 		
 //		String fileNameJson="TEST_results_all_endpoints_snapshot_compounds4.json";
@@ -412,6 +414,10 @@ public class RunCalculations {
 //		r.lookAtResultsInJson(destJsonPath, false);
 		
 //		r.lookAtResultsInJsonFiles("reports", false, false);
+		
+		long endTime = System.currentTimeMillis();
+		long runTime = (endTime-startTime)/1000;
+		System.out.println("This took : "+runTime+" secs");
 		
 	}
 
