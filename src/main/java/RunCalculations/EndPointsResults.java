@@ -7,6 +7,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.openscience.cdk.AtomContainerSet;
 
@@ -35,19 +37,20 @@ public class EndPointsResults {
 		key = key_in;
 	}
 	
-	public List<PredictionResults> calculateResults(AtomContainerSet batchSet, int batchSize) throws InterruptedException, ExecutionException {
+	public List<PredictionResults> calculateResults(AtomContainerSet batchSet) throws InterruptedException, ExecutionException {
 		
-		int nTasks = batchSet.getAtomContainerCount();
-		int nprocsUsed = (nTasks <= nprocs ? nTasks:nprocs);
+		int batchSize = batchSet.getAtomContainerCount();
+		int nprocsUsed = (batchSize <= nprocs ? batchSize:nprocs);
+		//nprocsUsed = 50;
 		executor = Executors.newFixedThreadPool(nprocsUsed);
 		
 		List<Future<List<PredictionResults>>> predictionResults = new ArrayList<Future<List<PredictionResults>>>(nprocsUsed);
-		int taskSize = (batchSize+nprocsUsed-1)/nprocsUsed;
+		int batchSizeEachProc = (batchSize+nprocsUsed-1)/nprocsUsed;
 
 		List<AtomContainerSet> chemicalSet = new ArrayList<AtomContainerSet>(nprocsUsed);
 		for (int j=0; j<nprocsUsed; j++) {
 			AtomContainerSet chemicals = new AtomContainerSet();
-			for (int i=0;i<taskSize;i++) {
+			for (int i=0;i<batchSizeEachProc;i++) {
 				chemicals.addAtomContainer(batchSet.getAtomContainer(0));
 				batchSet.removeAtomContainer(0);
 				if(batchSet.getAtomContainerCount()==0) break;
@@ -65,14 +68,21 @@ public class EndPointsResults {
 			//predictionResults.add(futureList);
 		}
 		
+		int timeout = 200;
 		List<PredictionResults> batchPredictionResults = new ArrayList<PredictionResults>();
 		for(Future<List<PredictionResults>> fut : futureList) {
             try {
                 // Future.get() waits for task to get completed
-    			batchPredictionResults.addAll(fut.get());
+            	List<PredictionResults> predictions = fut.get(timeout, TimeUnit.SECONDS);
+    			batchPredictionResults.addAll(predictions);
+    			System.out.println("Prediction list "+(futureList.indexOf(fut)+1)+" out of "+futureList.size()+" with "+predictions.size()+" did finish");
             } catch (InterruptedException | ExecutionException e) {
                 e.printStackTrace();
-            }
+            } catch (TimeoutException e) {
+				// TODO Auto-generated catch block
+				System.out.println("Prediction list "+(futureList.indexOf(fut)+1)+" out of "+futureList.size()+" did not finish in "+timeout+" seconds");
+				continue;
+			}
 		}
 		executor.shutdown();
 		

@@ -166,7 +166,7 @@ public class RunCalculations {
 
 				//Run chemicals on starting node:
 				//List<PredictionResults>resultsArrayPartial=RunFromSmiles.runEndpointsAsList(batchSet, endpoints, method,createReports,createDetailedReports,DSSToxRecord.strSID);
-				List<PredictionResults>resultsArrayPartial=endpointsResults.calculateResults(batchSet, batchSize);
+				List<PredictionResults>resultsArrayPartial=endpointsResults.calculateResults(batchSet);
 				
 				resultsArray.addAll(resultsArrayPartial);
 
@@ -405,7 +405,7 @@ public class RunCalculations {
 //		r.runSDFsMultiThreaded();
 //		r.runSDF_using_objects();
 		//r.runSDF_using_objects(1, 50, 16);
-		r.runSDF_concurrently(1, 50, 50);
+		r.runSDF_concurrently(1, 100, 100);
 		//r.runSDF_concurrently(2, 100, 50);
 		
 //		String fileNameJson="TEST_results_all_endpoints_snapshot_compounds4.json";
