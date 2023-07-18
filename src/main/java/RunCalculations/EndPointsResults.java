@@ -41,16 +41,16 @@ public class EndPointsResults {
 		
 		int batchSize = batchSet.getAtomContainerCount();
 		int nprocsUsed = (batchSize <= nprocs ? batchSize:nprocs);
-		//nprocsUsed = 50;
+		//nprocsUsed = 1;
 		executor = Executors.newFixedThreadPool(nprocsUsed);
 		
-		List<Future<List<PredictionResults>>> predictionResults = new ArrayList<Future<List<PredictionResults>>>(nprocsUsed);
-		int batchSizeEachProc = (batchSize+nprocsUsed-1)/nprocsUsed;
+		int taskSizePerProc = (batchSize+nprocsUsed-1)/nprocsUsed;
 
+		// build all chemical Sets
 		List<AtomContainerSet> chemicalSet = new ArrayList<AtomContainerSet>(nprocsUsed);
 		for (int j=0; j<nprocsUsed; j++) {
 			AtomContainerSet chemicals = new AtomContainerSet();
-			for (int i=0;i<batchSizeEachProc;i++) {
+			for (int i=0;i<taskSizePerProc;i++) {
 				chemicals.addAtomContainer(batchSet.getAtomContainer(0));
 				batchSet.removeAtomContainer(0);
 				if(batchSet.getAtomContainerCount()==0) break;
@@ -59,16 +59,16 @@ public class EndPointsResults {
 			if(batchSet.getAtomContainerCount()==0) break;
 		}
 		
-		int setCount = chemicalSet.size();
+		// submit all chemical sets for predictions
 		List<Future<List<PredictionResults>>> futureList = new ArrayList<Future<List<PredictionResults>>>();
-		for (int j=0; j<setCount; j++) {
+		for (int j=0; j<chemicalSet.size(); j++) {
 			ConcurrentRun task = new ConcurrentRun(chemicalSet.get(j));
 			Future<List<PredictionResults>> future = executor.submit(task);
 			futureList.add(future);
-			//predictionResults.add(futureList);
 		}
 		
-		int timeout = 200;
+		int timeout = 300;
+		// wait for chemical set predictions to finish
 		List<PredictionResults> batchPredictionResults = new ArrayList<PredictionResults>();
 		for(Future<List<PredictionResults>> fut : futureList) {
             try {
@@ -80,7 +80,7 @@ public class EndPointsResults {
                 e.printStackTrace();
             } catch (TimeoutException e) {
 				// TODO Auto-generated catch block
-				System.out.println("Prediction list "+(futureList.indexOf(fut)+1)+" out of "+futureList.size()+" did not finish in "+timeout+" seconds");
+				System.out.println("Prediction set "+(futureList.indexOf(fut)+1)+" of "+futureList.size()+" did not finish in "+timeout+" seconds");
 				continue;
 			}
 		}
